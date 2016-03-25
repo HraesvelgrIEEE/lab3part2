@@ -55,30 +55,47 @@ void initPWM() {
     PWM_B_CON.ON = 1; //Enable OC4
 }
 
-void setPWM(int motorSelect, float dutyCycle, short direction, short idle = 0) {
+void setPWM(int motorSelect, float dutyCycle, int dir, int idleFlag) {
     //idle is an override flag, disables OC because Garrett is finicky
+    
+    if (dutyCycle < 0) dutyCycle = 0;
+    if (dutyCycle > 1) dutyCycle = 1;
+//    
+//    if (idleFlag == 1) {
+//        PWM_A_REG = 0;
+//        PWM_B_REG = 0;
+//    }
+//    
+//    else {
+       
     switch (motorSelect) {
         case PWM_MOTOR_A:
-            if (idle == 1) {
-                PWM_A_CON.ON = 0;
+            if (idleFlag == 1) {
+                //PWM_A_CON.ON = 0;
+                PWM_A_REG = 0;
+                PWM_A_DIR_LAT = 0;
             }
             else {
-                PWM_A_CON.ON = 1;
-                PWM_A_DIR_LAT = direction;
-                if (direction == PWM_MOTOR_FORWARD)
+                PWM_A_REG = 0b1011;
+                //PWM_A_CON.ON = 1;
+                PWM_A_DIR_LAT = dir;
+                if (dir == PWM_MOTOR_FORWARD)
                     PWM_A_RS = dutyCycle * PWM_TIMER3_PRVAL;
                 else
                     PWM_A_RS = (1 - dutyCycle) * PWM_TIMER3_PRVAL;
             }
             break;
         case PWM_MOTOR_B:
-            if (idle == 1) {
-                PWM_B_CON.ON = 0;
+            if (idleFlag == 1) {
+                //PWM_B_CON.ON = 0;
+                PWM_B_REG = 0;
+                PWM_B_DIR_LAT = 0;
             }
             else {
-                PWM_B_CON.ON = 1;
-                PWM_B_DIR_LAT = direction;
-                if (direction == PWM_MOTOR_FORWARD)
+                //PWM_B_CON.ON = 1;
+                PWM_B_REG = 0b1011;
+                PWM_B_DIR_LAT = dir;
+                if (dir == PWM_MOTOR_FORWARD)
                     PWM_B_RS = dutyCycle * PWM_TIMER3_PRVAL;
                 else
                     PWM_B_RS = (1 - dutyCycle) * PWM_TIMER3_PRVAL;
@@ -88,4 +105,6 @@ void setPWM(int motorSelect, float dutyCycle, short direction, short idle = 0) {
             //Unrecognized motor selected, abort
             return;
     }
+//    
+//    }
 }

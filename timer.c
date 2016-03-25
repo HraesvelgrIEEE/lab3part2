@@ -33,9 +33,9 @@ void initTimer2() {
 }
 
 //This timer will be used exclusively for PWM
-void initTimer3(uint16_t prVal, uint16_t prescalar = 0) {
+void initTimer3(uint16_t prVal) {
     TMR3 = 0;
-    T3CONbits.TCKPS = prescalar;
+    T3CONbits.TCKPS = 0;
     T3CONbits.TCS = 0; //Use main (10 MHz) oscillator
     PR3 = prVal;
     IEC0bits.T3IE = 0; //We don't want the interrupt, just the actual timer

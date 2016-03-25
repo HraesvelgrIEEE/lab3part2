@@ -17,7 +17,7 @@ typedef enum motorStateTypeEnum {forward, idle1, reverse, idle2} motorStateType;
 
 volatile stateType state, nextState;
 volatile motorStateType motorState;
-volatile short direction, idle;
+volatile int direction, idle;
 volatile int pot;
 
 int main(void) {
@@ -31,17 +31,33 @@ int main(void) {
     initPWM();
     initSwitches();
     
+    //Calibrate pot
+    printStringLCD("Calibrate Pot");
+    
+    int min = 500, max = 500;
+    int i = 0;
+    
+    for (i = 0; i != 20; ++i) {
+        if (pot < min) min = pot;
+        if (pot > max) max = pot;
+        delayMs(100);
+    }
+    
+    float average = (float) (max - min) / 2.0 + min;
+    //End calibrate
+    
     direction = PWM_MOTOR_FORWARD;
     idle = 0;
     motorState = forward;
    
-    int leftMotor, rightMotor;
-    char buffer[5];
+    float leftMotor, rightMotor;
+    char buffer[16];
     
     while (1) {
         switch (state) {
             case wait:
-                
+                delayMs(1);
+                state = colorado;
                 break;
             case debounce:
                 delayMs(5);
@@ -50,16 +66,37 @@ int main(void) {
             case waitRelease:
                 break;
             case colorado:
-                itoa(pot, buffer, 10);
+                nextState = setPWMs;
+                sprintf(buffer, "Voltage: %.3fV", pot / 1023.0 * 3.3);
+                clearLCD();
+                moveCursorLCD(0, 1);
                 printStringLCD(buffer);
-                state = setPWMs;
+                moveCursorLCD(0, 2);
+                char motorStateStr[8];
+                switch (motorState) {
+                    case idle1:
+                    case idle2:
+                        sprintf(motorStateStr, "%s", "Idle");
+                        break;
+                    case forward:
+                        sprintf(motorStateStr, "%s", "Forward");
+                        break;
+                    case reverse:
+                        sprintf(motorStateStr, "%s", "Reverse");
+                        break;
+                }
+                printStringLCD("State: "); printStringLCD(motorStateStr);
+                state = nextState;
+                delayMs(10);
                 break;
             case setPWMs:
-                leftMotor = 1 - float(511 - pot) / 511.0;
-                rightMotor = 1 - float(pot - 511) / 511.0;
-                setPWM(PWM_MOTOR_A, leftMotor, PWM_MOTOR_FORWARD);
-                setPWM(PWM_MOTOR_B, rightMotor, PWM_MOTOR_FORWARD);
-                state = wait;
+                nextState = colorado;
+                leftMotor = 1 - 2 * (float) (average - pot) / average;
+                rightMotor = 1 - 2 * (float) (pot - average) / average;
+                setPWM(PWM_MOTOR_A, leftMotor, direction, idle);
+                setPWM(PWM_MOTOR_B, rightMotor, direction, idle);
+                state = nextState;
+                delayMs(1);
                 break;
         }
     }
@@ -70,14 +107,14 @@ __ISR(_ADC_VECTOR, IPL7SRS) _ADCInterrupt() {
     
     pot = ADC1BUF0;
     
-    state = colorado;
+    //if (state == wait) state = colorado;
 }
 
 __ISR(_CHANGE_NOTICE_VECTOR, IPL7SRS) _CNInterrupt() {
     IFS1bits.CNAIF = 0;
     
     if (SW1 == SWITCH_PRESSED) {
-        state = debounce;
+        nextState = debounce;
     }
     
     if (SW1 == SWITCH_NPRESSED && state == waitRelease) {
